@@ -1,5 +1,5 @@
 version: "3.8"
- 
+
 services:
   prometheus:
     image: prom/prometheus:latest
@@ -10,7 +10,7 @@ services:
       - "9091:9090"
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
- 
+
   loki:
     image: grafana/loki:2.9.4
     container_name: loki
@@ -20,7 +20,7 @@ services:
       - "3100:3100"
     command:
       - "-config.file=/etc/loki/config.yml"
- 
+
   promtail:
     image: grafana/promtail:latest
     container_name: promtail
@@ -31,7 +31,7 @@ services:
       - "-config.file=/etc/promtail/config.yml"
     depends_on:
       - loki
- 
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -42,3 +42,49 @@ services:
     depends_on:
       - prometheus
       - loki
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: appdb
+      MYSQL_USER: exporter
+      MYSQL_PASSWORD: exporterpassword
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/mysql-config.yml:/etc/mysql/conf.d/custom.cnf
+    ports:
+      - "3306:3306"
+
+  mysql-exporter:
+    image: prom/mysqld-exporter:latest
+    container_name: mysql-exporter
+    restart: always
+    command:
+      - "--config.my-cnf=/etc/mysql/exporter.cnf"
+    volumes:
+      - ./mysql/exporter.cnf:/etc/mysql/exporter.cnf:ro
+    ports:
+      - "9104:9104"
+    depends_on:
+      - mysql
+
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    restart: always
+    user: root
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - prometheus
+
+volumes:
+  mysql_data:
+  jenkins_home:
